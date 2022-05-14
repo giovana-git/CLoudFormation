@@ -1,0 +1,137 @@
+## Criando uma Rede com CloudFormation
+
+---
+  Resources:
+
+# Criando uma VPC
+
+    VPCIaC:
+      Type: AWS::EC2::VPC
+      Properties:
+        CidrBlock: 192.168.0.0/16
+        EnableDnsSupport: true
+        EnableDnsHostnames: true
+        Tags:
+          - Key: "Name"
+            Value: "VPC-IaC"
+
+# Criando uma sub-rede pública com IP público habilitado e colocando-as em uma zona de disponibilidade
+
+    PublicSubnet:
+      Type: AWS::EC2::Subnet
+      Properties:
+        VpcId: !Ref VPCIaC
+        CidrBlock: 192.168.1.0/24
+        AvailabilityZone: "us-east-1a"
+        MapPublicIpOnLaunch: true
+        Tags:
+          - Key: "Name"
+            Value: "PublicSubnet"
+
+# Criando uma subnet privada e colocando-as em uma zona de disponibilidade
+
+    PrivateSubnet:
+      Type: AWS::EC2::Subnet
+      Properties:
+        VpcId: !Ref VPCIaC
+        CidrBlock: 192.168.3.0/24
+        AvailabilityZone: "us-east-1a"
+        Tags:
+          - Key: "Name"
+            Value: "PrivateSubnet"
+
+# Criando um internet gateway
+
+    IGW:
+      Type: AWS::EC2::InternetGateway
+      Properties:
+        Tags:
+          - Key: "Name"
+            Value: "Internet"
+
+# Associando internet gateway a VPC
+
+    AttachIGW:
+      Type: AWS::EC2::VPCGatewayAttachment
+      Properties:
+        VpcId: !Ref VPCIaC
+        InternetGatewayId: !Ref IGW
+    
+# Criando uma tabela de rota pública
+
+    PublicRouteTable:
+      Type: AWS::EC2::RouteTable
+      Properties:
+        VpcId: !Ref VPCIaC
+        Tags:
+          - Key: "Name"
+            Value: "PublicRouteTable"
+    
+# Criando uma rota pública para a internet (IGW)
+
+    PublicRoute:
+      Type: AWS::EC2::Route
+      DependsOn: IGW
+      Properties:
+        DestinationCidrBlock: 0.0.0.0/0
+        GatewayId: !Ref IGW
+        RouteTableId: !Ref PublicRouteTable
+    
+# Associando a sub-rede pública a rota pública
+
+    RTAssocSubPubA:
+      Type: AWS::EC2::SubnetRouteTableAssociation
+      Properties:
+        RouteTableId: !Ref PublicRouteTable
+        SubnetId: !Ref PublicSubnet
+
+# Criando um IP elástico
+
+    ElasticIp:
+      Type: AWS::EC2::EIP
+      Properties:
+        Domain: VPC
+        Tags:
+          - Key: "Name"
+            Value: "ElasticIp"
+
+# Criando um NAT gateway, alocando um IP elástico e referênciando uma sub-rede
+
+    NATGateway:
+      Type: AWS::EC2::NatGateway
+      Properties:
+        AllocationId:
+          Fn::GetAtt:
+          - ElasticIp
+          - AllocationId
+        SubnetId: !Ref PublicSubnet
+        Tags:
+          - Key: "Name"
+            Value: "NatGateway"
+
+# Criando uma tabela de rotas privada
+
+    PrivateRouteTable:
+      Type: AWS::EC2::RouteTable
+      Properties:
+        VpcId: !Ref VPCIaC
+        Tags:
+          - Key: "Name"
+            Value: "PrivateRouteTable"
+
+# Criando uma rota privada e apontando o NAT gateway para ela
+
+    PrivateRouteToNat:
+      Type: AWS::EC2::Route
+      Properties:
+        RouteTableId: !Ref PrivateRouteTable
+        DestinationCidrBlock: 0.0.0.0/0
+        NatGatewayId: !Ref NATGateway
+
+# Associando a sub-rede privada a tabela de rota privada
+
+    RTAssocSubPrivA:
+      Type: AWS::EC2::SubnetRouteTableAssociation
+      Properties:
+        SubnetId: !Ref PrivateSubnet
+        RouteTableId: !Ref PrivateRouteTable
