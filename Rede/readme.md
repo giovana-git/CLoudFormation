@@ -1,2 +1,9 @@
-# CloudFormation
-Nesse repositório deixarei partes de scripts feitos por mim com CloudFormation em um estudo mais afundo sobre a ferramenta da AWS Cloud.
+# Rede
+
+No arquivo acima deixei o script .yaml criando recursos de Rede com o AWS CloudFormation, entre esses recursos:
+
+* Virtual Private Cloud (VPC)
+* Subnets
+* Internet gateway
+* NAT gateway
+* Elastic IP
